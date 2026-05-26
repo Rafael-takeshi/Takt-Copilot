@@ -64,24 +64,10 @@ const AI_AGENTS = [
   { id: 5, name: "Revisor", icon: CheckSquare, desc: "Verifica clareza, tom de marca, erros, excesso de texto e coerência visual.", color: "green", tool: "Claude", bg: "bg-green-50", border: "border-green-200", iconBg: "bg-green-100", iconColor: "text-green-600" },
 ];
 
-const RESULT = {
-  analysis: "A referência apresenta layout clean e tecnológico, com predominância de tons neutros (branco e cinza) e elementos gráficos sutis como ícones lineares e cards com sombra suave. A composição é centralizada com hierarquia visual clara: título em destaque, subtítulo descritivo e CTA no rodapé. O estilo remete a interfaces SaaS corporativas, transmitindo credibilidade, modernidade e precisão técnica.",
-  idea: "Criar um post que posiciona a AvaliaX como referência em segurança digital para processos de KYC, destacando agilidade e confiabilidade para empresas que precisam validar cadastros. O post deve falar diretamente com gestores de compliance, heads de operação e equipes de onboarding digital.",
-  headline: "Mais segurança antes de aprovar qualquer cadastro.",
-  sub: "Consulte antecedentes, dados cadastrais e sinais de risco em uma análise mais completa.",
-  cta: "Conheça a AvaliaX →",
-  caption: "Em processos de KYC, cada detalhe importa.\n\nCom a AvaliaX, sua empresa ganha mais agilidade para validar pessoas e empresas, reduzir riscos e tomar decisões mais seguras — tudo integrado em uma única plataforma.\n\n✅ Consulta de antecedentes em segundos\n✅ Análise de dados cadastrais e sinais de risco\n✅ Integração com os principais sistemas de compliance\n\nSua operação merece uma base mais sólida. 🔐\n\n👉 Acesse o link na bio e teste gratuitamente.\n\n#KYC #Compliance #SegurançaDigital #AvaliaX #OnboardingDigital",
-  visual: "Arte com interface de software ao fundo, mostrando cards de verificação e dashboards. Ícones lineares de documentos, escudos e check marks. Paleta: branco, cinza claro (#F3F4F6), azul corporativo (#1E40AF) e detalhes em laranja (#F97316) para o CTA. Visual limpo, tecnológico e corporativo. Texto centralizado ou no terço inferior.",
-  checklist: [
-    "Texto claro e objetivo",
-    "CTA presente e visível",
-    "Tom alinhado ao cliente (AvaliaX)",
-    "Pouco texto na arte — legível",
-    "Ideia compatível com objetivo (Autoridade)",
-    "Hashtags relevantes e limitadas",
-    "Formatação de legenda OK",
-    "Sem erros ortográficos detectados",
-  ]
+const RESULT_DEFAULT = {
+  client: "", type: "", platform: "", goal: "", theme: "",
+  analysis: "", idea: "", headline: "", sub: "", cta: "", caption: "", visual: "",
+  checklist: []
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -310,27 +296,68 @@ function Dashboard({ setPage }) {
 // CREATE POST
 // ════════════════════════════════════════════════════════════════
 
-function CreatePost({ setPage }) {
+function CreatePost({ setPage, setResult }) {
   const [form, setForm] = useState({
     client: "", type: "", platform: "", theme: "", goal: "", audience: "", notes: ""
   });
   const [file, setFile] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [step, setStep] = useState(0);
+  const [error, setError] = useState(null);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    if (!form.client || !form.theme) {
+      setError("Por favor, selecione um cliente e preencha o tema do conteúdo.");
+      return;
+    }
+    setError(null);
     setGenerating(true);
     setStep(0);
+
+    // Animação visual em paralelo com a chamada à API
     const interval = setInterval(() => {
       setStep(prev => {
         if (prev >= 4) {
           clearInterval(interval);
-          setTimeout(() => setPage("result"), 800);
           return 5;
         }
         return prev + 1;
       });
     }, 900);
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Erro na API');
+      }
+
+      const data = await response.json();
+      const merged = {
+        ...data,
+        client: form.client,
+        type: form.type || 'Post único',
+        platform: form.platform || 'Instagram',
+        goal: form.goal || 'Engajamento',
+        theme: form.theme
+      };
+
+      // Aguarda animação terminar antes de navegar
+      setTimeout(() => {
+        setResult(merged);
+        setPage("result");
+      }, 5500);
+
+    } catch (err) {
+      clearInterval(interval);
+      setGenerating(false);
+      setError('Erro ao gerar conteúdo: ' + err.message + '. Verifique sua conexão e tente novamente.');
+    }
   };
 
   if (generating) {
@@ -436,6 +463,14 @@ function CreatePost({ setPage }) {
                 <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold">1</div>
                 Informações do post
               </h3>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+                  <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                  <p className="text-red-600 text-xs">{error}</p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">Cliente</label>
@@ -483,7 +518,7 @@ function CreatePost({ setPage }) {
                 </div>
               </div>
               <div className="mt-4">
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tema do conteúdo</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tema do conteúdo *</label>
                 <input
                   className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all"
                   placeholder="Ex: KYC e verificação de antecedentes para empresas..."
@@ -586,8 +621,8 @@ function CreatePost({ setPage }) {
                       <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center mx-auto mb-2">
                         <Shield size={14} className="text-white" />
                       </div>
-                      <p className="text-white text-xs font-bold">AvaliaX</p>
-                      <p className="text-gray-300 text-xs mt-0.5">Verificação de dados</p>
+                      <p className="text-white text-xs font-bold">Takt Copilot</p>
+                      <p className="text-gray-300 text-xs mt-0.5">Geração com IA real</p>
                     </div>
                   </div>
                   <div className="p-3 bg-white">
@@ -605,7 +640,7 @@ function CreatePost({ setPage }) {
                 <Star size={12} /> Dicas para melhor resultado
               </p>
               <ul className="space-y-1.5">
-                {["Envie uma referência visual com estilo próximo ao desejado", "Descreva bem o público-alvo para um copy mais certeiro", "Use o campo de observações para ajustes específicos de tom"].map((tip, i) => (
+                {["Selecione o cliente e preencha o tema para ativar a IA", "Descreva bem o público-alvo para um copy mais certeiro", "Use o campo de observações para ajustes específicos de tom"].map((tip, i) => (
                   <li key={i} className="text-orange-600 text-xs flex items-start gap-1.5">
                     <Check size={10} className="mt-0.5 flex-shrink-0" /> {tip}
                   </li>
@@ -632,7 +667,7 @@ const TABS = [
   { id: "checklist", label: "Checklist" },
 ];
 
-function ResultPage({ setPage }) {
+function ResultPage({ setPage, result }) {
   const [tab, setTab] = useState("analysis");
   const [copied, setCopied] = useState(false);
 
@@ -641,11 +676,13 @@ function ResultPage({ setPage }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const checklistCount = result.checklist?.length || 0;
+
   return (
     <div className="flex flex-col h-full">
       <Header
         title="Resultado gerado"
-        sub="AvaliaX · Post único · Instagram · Autoridade"
+        sub={`${result.client || '—'} · ${result.type || '—'} · ${result.platform || '—'} · ${result.goal || '—'}`}
         action={
           <div className="flex items-center gap-2">
             <button
@@ -667,11 +704,11 @@ function ResultPage({ setPage }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-6">
               {[
-                { label: "Cliente", val: "AvaliaX" },
-                { label: "Formato", val: "Post único" },
-                { label: "Plataforma", val: "Instagram" },
-                { label: "Objetivo", val: "Autoridade" },
-                { label: "Tema", val: "KYC e antecedentes" },
+                { label: "Cliente", val: result.client || "—" },
+                { label: "Formato", val: result.type || "—" },
+                { label: "Plataforma", val: result.platform || "—" },
+                { label: "Objetivo", val: result.goal || "—" },
+                { label: "Tema", val: result.theme || "—" },
               ].map(({ label, val }) => (
                 <div key={label}>
                   <p className="text-xs text-gray-400">{label}</p>
@@ -728,13 +765,13 @@ function ResultPage({ setPage }) {
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 leading-relaxed">
-                  {RESULT.analysis}
+                  {result.analysis || "Nenhuma análise gerada."}
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-3">
                   {[
-                    { label: "Estilo identificado", val: "SaaS Corporativo" },
-                    { label: "Paleta dominante", val: "Neutros + Azul" },
-                    { label: "Composição", val: "Centralizada, hierárquica" },
+                    { label: "Estilo identificado", val: "Conforme briefing" },
+                    { label: "Paleta dominante", val: "Gerada pela IA" },
+                    { label: "Composição", val: "Detalhada abaixo" },
                   ].map(({ label, val }) => (
                     <div key={label} className="bg-purple-50 rounded-xl p-3 border border-purple-100">
                       <p className="text-xs text-purple-500 mb-0.5">{label}</p>
@@ -757,12 +794,7 @@ function ResultPage({ setPage }) {
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 leading-relaxed">
-                  {RESULT.idea}
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {["Compliance", "KYC", "Validação cadastral", "Onboarding digital", "Gestão de risco"].map(tag => (
-                    <Tag key={tag} label={tag} />
-                  ))}
+                  {result.idea || "Nenhuma ideia gerada."}
                 </div>
               </div>
             )}
@@ -791,22 +823,22 @@ function ResultPage({ setPage }) {
                             <div className="w-6 h-6 rounded bg-green-600/30 flex items-center justify-center"><CheckSquare size={12} className="text-green-300" /></div>
                           </div>
                         </div>
-                        <p className="text-white font-bold text-lg leading-tight">{RESULT.headline}</p>
-                        <p className="text-gray-300 text-xs mt-2 leading-relaxed">{RESULT.sub}</p>
+                        <p className="text-white font-bold text-lg leading-tight">{result.headline || "—"}</p>
+                        <p className="text-gray-300 text-xs mt-2 leading-relaxed">{result.sub || "—"}</p>
                         <div className="mt-4 inline-block bg-orange-500 text-white text-xs font-semibold px-4 py-1.5 rounded-full">
-                          {RESULT.cta}
+                          {result.cta || "—"}
                         </div>
                       </div>
                     </div>
                     <div className="bg-white p-4 space-y-3">
                       {[
-                        { label: "Headline", val: RESULT.headline },
-                        { label: "Subheadline", val: RESULT.sub },
-                        { label: "CTA", val: RESULT.cta },
+                        { label: "Headline", val: result.headline },
+                        { label: "Subheadline", val: result.sub },
+                        { label: "CTA", val: result.cta },
                       ].map(({ label, val }) => (
                         <div key={label} className="flex gap-3">
                           <span className="text-xs font-bold text-orange-500 w-24 flex-shrink-0 pt-0.5">{label}</span>
-                          <span className="text-sm text-gray-700">{val}</span>
+                          <span className="text-sm text-gray-700">{val || "—"}</span>
                         </div>
                       ))}
                     </div>
@@ -823,17 +855,19 @@ function ResultPage({ setPage }) {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-gray-900">IA 3: Copywriter — Legenda</p>
-                    <p className="text-xs text-gray-400">Legenda completa para Instagram</p>
+                    <p className="text-xs text-gray-400">Legenda completa para {result.platform || "redes sociais"}</p>
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4">
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{RESULT.caption}</pre>
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{result.caption || "Nenhuma legenda gerada."}</pre>
                 </div>
-                <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
-                  <span>Caracteres: {RESULT.caption.length}</span>
-                  <span>·</span>
-                  <span className="text-green-500 font-medium">✓ Dentro do limite recomendado</span>
-                </div>
+                {result.caption && (
+                  <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
+                    <span>Caracteres: {result.caption.length}</span>
+                    <span>·</span>
+                    <span className="text-green-500 font-medium">✓ Dentro do limite recomendado</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -849,7 +883,7 @@ function ResultPage({ setPage }) {
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 leading-relaxed mb-4">
-                  {RESULT.visual}
+                  {result.visual || "Nenhum briefing visual gerado."}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-pink-50 rounded-xl p-3 border border-pink-100">
@@ -861,12 +895,8 @@ function ResultPage({ setPage }) {
                     </div>
                   </div>
                   <div className="bg-pink-50 rounded-xl p-3 border border-pink-100">
-                    <p className="text-xs text-pink-500 font-semibold mb-2">Elementos sugeridos</p>
-                    <div className="flex flex-wrap gap-1">
-                      {["Interface software", "Cards UI", "Ícones segurança", "Checkmarks"].map(e => (
-                        <span key={e} className="text-xs bg-white border border-pink-100 text-pink-600 px-1.5 py-0.5 rounded">{e}</span>
-                      ))}
-                    </div>
+                    <p className="text-xs text-pink-500 font-semibold mb-2">Gerado por IA</p>
+                    <p className="text-xs text-pink-600">Veja o briefing completo acima para detalhes visuais específicos.</p>
                   </div>
                 </div>
               </div>
@@ -884,7 +914,7 @@ function ResultPage({ setPage }) {
                   </div>
                 </div>
                 <div className="space-y-2.5">
-                  {RESULT.checklist.map((item, i) => (
+                  {(result.checklist || []).map((item, i) => (
                     <div key={i} className="flex items-center gap-3 p-3.5 bg-green-50 rounded-xl border border-green-100">
                       <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
                         <Check size={12} className="text-white" />
@@ -893,13 +923,15 @@ function ResultPage({ setPage }) {
                     </div>
                   ))}
                 </div>
-                <div className="mt-5 p-4 bg-green-500 rounded-xl text-white flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-sm">✓ Aprovado pelo Revisor</p>
-                    <p className="text-green-100 text-xs mt-0.5">Todos os critérios foram verificados com sucesso.</p>
+                {checklistCount > 0 && (
+                  <div className="mt-5 p-4 bg-green-500 rounded-xl text-white flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-sm">✓ Aprovado pelo Revisor</p>
+                      <p className="text-green-100 text-xs mt-0.5">Todos os critérios foram verificados com sucesso.</p>
+                    </div>
+                    <div className="text-3xl font-black">{checklistCount}/{checklistCount}</div>
                   </div>
-                  <div className="text-3xl font-black">8/8</div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -1175,14 +1207,14 @@ function SettingsPage() {
     <div className="flex flex-col h-full">
       <Header title="Configurações de IA" sub="Gerencie quais IAs atuam em cada etapa do fluxo" />
       <div className="flex-1 overflow-y-auto px-8 py-6">
-        {/* Banner */}
-        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-            <AlertCircle size={17} className="text-orange-500" />
+        {/* Banner — agora mostra que está ATIVO */}
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+            <Check size={17} className="text-green-500" />
           </div>
           <div>
-            <p className="text-orange-800 text-sm font-semibold">Configuração futura — modo de demonstração</p>
-            <p className="text-orange-600 text-xs mt-0.5">As integrações com APIs reais serão ativadas na próxima fase do desenvolvimento.</p>
+            <p className="text-green-800 text-sm font-semibold">IA real conectada e funcionando</p>
+            <p className="text-green-600 text-xs mt-0.5">A API da Anthropic está ativa. Gere um post para ver o resultado real.</p>
           </div>
         </div>
 
@@ -1210,7 +1242,7 @@ function SettingsPage() {
                   }`} />
                 </div>
                 <button className="text-xs text-gray-400 hover:text-gray-600 transition-all">Configurar</button>
-              </div>
+          </div>
             </div>
           ))}
         </div>
@@ -1253,12 +1285,13 @@ function SettingsPage() {
 
 export default function App() {
   const [page, setPage] = useState("dashboard");
+  const [result, setResult] = useState(RESULT_DEFAULT);
 
   const renderPage = () => {
     switch (page) {
       case "dashboard": return <Dashboard setPage={setPage} />;
-      case "create":    return <CreatePost setPage={setPage} />;
-      case "result":    return <ResultPage setPage={setPage} />;
+      case "create":    return <CreatePost setPage={setPage} setResult={setResult} />;
+      case "result":    return <ResultPage setPage={setPage} result={result} />;
       case "clients":   return <ClientsPage setPage={setPage} />;
       case "library":   return <LibraryPage setPage={setPage} />;
       case "history":   return <HistoryPage setPage={setPage} />;
