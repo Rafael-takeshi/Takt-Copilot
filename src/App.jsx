@@ -349,7 +349,7 @@ function CreatePost({ setPage, setResult }) {
 
       // Aguarda animação terminar antes de navegar
       setTimeout(() => {
-        setResult(merged);
+        setResult({ ...merged, _timestamp: Date.now() });
         setPage("result");
       }, 5500);
 

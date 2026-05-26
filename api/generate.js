@@ -13,10 +13,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const prompt = `Você é um time especializado em criação de conteúdo para redes sociais de uma agência de marketing digital. Gere um conteúdo completo e profissional para:
+    const prompt = `Você é um time especializado em criação de conteúdo para redes sociais de uma agência de marketing digital.
 
-BRIEFING:
-- Cliente: ${client}
+ATENÇÃO: Todo o conteúdo gerado deve ser EXCLUSIVAMENTE sobre o cliente "${client}". Não mencione outros clientes ou empresas.
+
+BRIEFING OBRIGATÓRIO:
+- CLIENTE: ${client} (use este nome em todo o conteúdo)
 - Tipo de conteúdo: ${type || 'Post único'}
 - Plataforma: ${platform || 'Instagram'}
 - Tema: ${theme}
@@ -24,16 +26,16 @@ BRIEFING:
 - Público-alvo: ${audience || 'Geral'}
 - Observações: ${notes || 'Nenhuma'}
 
-Responda APENAS com um objeto JSON válido (sem markdown, sem explicações extras) neste formato exato:
+Gere um conteúdo completo e profissional para ${client}. Responda APENAS com um objeto JSON válido (sem markdown, sem \`\`\`json, sem explicações extras) neste formato exato:
 {
-  "analysis": "Análise do estilo visual recomendado: descreva a identidade visual ideal, paleta de cores, elementos gráficos e composição para este cliente e objetivo. Escreva 2 a 3 parágrafos detalhados e profissionais.",
-  "idea": "Ideia estratégica: explique o conceito central do post, o posicionamento, o ângulo criativo e por que essa abordagem funciona para o público-alvo. Escreva 2 a 3 parágrafos.",
-  "headline": "Headline curto e impactante para a arte (máximo 10 palavras)",
-  "sub": "Subheadline complementar ao headline (máximo 15 palavras)",
+  "analysis": "Análise do estilo visual ideal para ${client}: descreva a identidade visual, paleta de cores, elementos gráficos e composição adequados para este cliente e objetivo. 2 a 3 parágrafos detalhados.",
+  "idea": "Ideia estratégica para ${client}: explique o conceito central do post, o posicionamento e o ângulo criativo. Mencione o cliente ${client} explicitamente. 2 a 3 parágrafos.",
+  "headline": "Headline curto e impactante para a arte de ${client} (máximo 10 palavras)",
+  "sub": "Subheadline complementar (máximo 15 palavras)",
   "cta": "Call to action direto (máximo 5 palavras com →)",
-  "caption": "Legenda completa para a plataforma com emojis, quebras de linha, marcadores onde relevante, e de 3 a 5 hashtags relevantes no final",
-  "visual": "Briefing visual detalhado para o designer: cores exatas com hexadecimal, tipografia, elementos visuais, composição, referências de estilo e instruções de execução",
-  "checklist": ["Texto claro e objetivo", "CTA presente e visível", "Tom alinhado ao cliente", "Pouco texto na arte — legível", "Ideia compatível com objetivo", "Hashtags relevantes e limitadas", "Formatação de legenda OK", "Sem erros ortográficos"]
+  "caption": "Legenda completa para ${platform} sobre ${client}, com emojis, quebras de linha, marcadores onde relevante, e de 3 a 5 hashtags relevantes no final",
+  "visual": "Briefing visual detalhado para o designer de ${client}: cores exatas com hexadecimal, tipografia, elementos visuais, composição e instruções de execução",
+  "checklist": ["Texto claro e objetivo", "CTA presente e visível", "Tom alinhado ao cliente ${client}", "Pouco texto na arte — legível", "Ideia compatível com objetivo ${goal || 'Engajamento'}", "Hashtags relevantes e limitadas", "Formatação de legenda OK", "Sem erros ortográficos"]
 }`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
