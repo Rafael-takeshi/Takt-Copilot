@@ -249,11 +249,11 @@ function Sidebar({ page, setPage }) {
         <div className="flex items-center gap-3">
           <TaktLogoIcon size={34} />
           <div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-white font-bold text-sm tracking-wide">takt</span>
-              <span className="text-xs font-medium" style={{ color: TAKT.slate }}>digital</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-black text-base tracking-wide" style={{ color: TAKT.cyan }}>takt</span>
+              <span className="font-semibold text-sm text-white">digital</span>
             </div>
-            <p className="text-xs" style={{ color: "#4a5568", marginTop: "1px" }}>Copilot IA</p>
+            <p className="text-xs font-medium" style={{ color: TAKT.slate, marginTop: "1px" }}>Copilot IA</p>
           </div>
         </div>
       </div>
@@ -276,9 +276,6 @@ function Sidebar({ page, setPage }) {
             >
               <Icon size={17} />
               {label}
-              {id === "create" && (
-                <span className="ml-auto w-5 h-5 rounded-full text-xs flex items-center justify-center text-white font-bold" style={{ backgroundColor: TAKT.coral }}>+</span>
-              )}
             </button>
           );
         })}
