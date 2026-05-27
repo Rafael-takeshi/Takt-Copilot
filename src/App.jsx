@@ -514,14 +514,7 @@ function CreatePost({ setPage, setResult, clients, addHistory }) {
 
       setTimeout(() => {
         setResult(merged);
-        addHistory({
-          client: form.client,
-          theme: form.theme,
-          type: form.type || "Post único",
-          platform: form.platform || "Instagram",
-          status: "Em revisão",
-          date: new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
-        });
+        addHistory({ ...merged, status: "Em revisão" });
         setPage("result");
       }, 5500);
 
@@ -996,7 +989,7 @@ function ClientsPage({ setPage, clients, setClients, showToast }) {
 // ════════════════════════════════════════════════════════════════
 // HISTORY PAGE
 // ════════════════════════════════════════════════════════════════
-function HistoryPage({ setPage, history }) {
+function HistoryPage({ setPage, history, setResult }) {
   const [search, setSearch] = useState("");
   const filtered = history.filter(h =>
     h.client.toLowerCase().includes(search.toLowerCase()) ||
@@ -1045,6 +1038,17 @@ function HistoryPage({ setPage, history }) {
                     <td className="px-5 py-3.5"><span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">{item.type}</span></td>
                     <td className="px-5 py-3.5 text-sm text-gray-500">{item.platform}</td>
                     <td className="px-5 py-3.5"><span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusStyle(item.status)}`}>{item.status}</span></td>
+                    <td className="px-5 py-3.5">
+                      {item.headline && (
+                        <button
+                          onClick={() => { setResult(item); setPage("result"); }}
+                          className="text-xs font-semibold hover:underline flex items-center gap-1"
+                          style={{ color: TAKT.cyan }}
+                        >
+                          Abrir <ChevronRight size={12} />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1232,14 +1236,23 @@ export default function App() {
     loadData();
   }, []);
 
-  // ── Salva post gerado no banco ──
+  // ── Salva post gerado no banco (conteúdo completo) ──
   const addHistory = async (item) => {
     const { data } = await supabase.from('posts').insert({
       client_name: item.client,
       theme: item.theme,
       type: item.type,
       platform: item.platform,
+      goal: item.goal,
       status: item.status,
+      analysis: item.analysis,
+      idea: item.idea,
+      headline: item.headline,
+      sub: item.sub,
+      cta: item.cta,
+      caption: item.caption,
+      visual: item.visual,
+      checklist: item.checklist,
     }).select().single();
     if (data) {
       setHistory(prev => [{
@@ -1248,8 +1261,18 @@ export default function App() {
         theme: data.theme,
         type: data.type,
         platform: data.platform,
+        goal: data.goal,
         status: data.status,
         date: new Date(data.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        // conteúdo completo para reabrir
+        analysis: data.analysis,
+        idea: data.idea,
+        headline: data.headline,
+        sub: data.sub,
+        cta: data.cta,
+        caption: data.caption,
+        visual: data.visual,
+        checklist: data.checklist,
       }, ...prev]);
     }
   };
@@ -1271,7 +1294,7 @@ export default function App() {
       case "result":    return <ResultPage setPage={setPage} result={result} updateHistory={updateHistory} />;
       case "clients":   return <ClientsPage setPage={setPage} clients={clients} setClients={setClients} showToast={showToast} />;
       case "library":   return <LibraryPage clients={clients} setPage={setPage} />;
-      case "history":   return <HistoryPage setPage={setPage} history={history} />;
+      case "history":   return <HistoryPage setPage={setPage} history={history} setResult={setResult} />;
       case "settings":  return <SettingsPage showToast={showToast} />;
       default:          return <Dashboard setPage={setPage} clients={clients} history={history} />;
     }
