@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from './supabase';
 import {
   LayoutDashboard, Plus, Users, BookOpen, Clock, Settings,
   Eye, Target, CheckSquare, Upload, FileText, Search, Bell,
@@ -879,19 +880,31 @@ function ClientsPage({ setPage, clients, setClients, showToast }) {
   const [editClient, setEditClient] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  const handleSave = (form) => {
+  const handleSave = async (form) => {
     if (editClient) {
-      setClients(prev => prev.map(c => c.id === editClient.id ? { ...editClient, ...form } : c));
+      await supabase.from('clients').update({
+        name: form.name, segment: form.segment, tone: form.tone,
+        content_type: form.contentType, instagram: form.instagram,
+        notes: form.notes, color: form.color,
+      }).eq('id', editClient.id);
+      setClients(prev => prev.map(c => c.id === editClient.id
+        ? { ...editClient, ...form, content_type: form.contentType } : c));
       showToast("Cliente atualizado com sucesso!");
     } else {
-      setClients(prev => [...prev, { ...form, id: Date.now(), posts: 0 }]);
+      const { data } = await supabase.from('clients').insert({
+        name: form.name, segment: form.segment, tone: form.tone,
+        content_type: form.contentType, instagram: form.instagram,
+        notes: form.notes, color: form.color,
+      }).select().single();
+      if (data) setClients(prev => [{ ...data, contentType: data.content_type }, ...prev]);
       showToast("Cliente cadastrado com sucesso!");
     }
     setShowModal(false);
     setEditClient(null);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
+    await supabase.from('clients').delete().eq('id', id);
     setClients(prev => prev.filter(c => c.id !== id));
     setDeleteConfirm(null);
     showToast("Cliente removido.");
@@ -1193,13 +1206,61 @@ export default function App() {
   const [clients, setClients] = useState([]);
   const [history, setHistory] = useState([]);
   const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const showToast = (msg) => setToast(msg);
 
-  const addHistory = (item) => setHistory(prev => [item, ...prev]);
+  // ── Carrega dados do banco ao abrir o app ──
+  useEffect(() => {
+    const loadData = async () => {
+      const [{ data: clientsData }, { data: postsData }] = await Promise.all([
+        supabase.from('clients').select('*').order('created_at', { ascending: false }),
+        supabase.from('posts').select('*').order('created_at', { ascending: false }),
+      ]);
+      if (clientsData) setClients(clientsData.map(c => ({ ...c, contentType: c.content_type })));
+      if (postsData) setHistory(postsData.map(p => ({
+        id: p.id,
+        client: p.client_name,
+        theme: p.theme,
+        type: p.type,
+        platform: p.platform,
+        status: p.status,
+        date: new Date(p.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      })));
+      setLoading(false);
+    };
+    loadData();
+  }, []);
 
-  const updateHistory = (result) => {
-    setHistory(prev => prev.map((h, i) => i === 0 ? { ...h, status: "Aprovado" } : h));
+  // ── Salva post gerado no banco ──
+  const addHistory = async (item) => {
+    const { data } = await supabase.from('posts').insert({
+      client_name: item.client,
+      theme: item.theme,
+      type: item.type,
+      platform: item.platform,
+      status: item.status,
+    }).select().single();
+    if (data) {
+      setHistory(prev => [{
+        id: data.id,
+        client: data.client_name,
+        theme: data.theme,
+        type: data.type,
+        platform: data.platform,
+        status: data.status,
+        date: new Date(data.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      }, ...prev]);
+    }
+  };
+
+  // ── Aprova post: atualiza status no banco ──
+  const updateHistory = async (result) => {
+    const latest = history[0];
+    if (latest?.id) {
+      await supabase.from('posts').update({ status: 'Aprovado' }).eq('id', latest.id);
+    }
+    setHistory(prev => prev.map((h, i) => i === 0 ? { ...h, status: 'Aprovado' } : h));
     showToast("Post aprovado!");
   };
 
@@ -1215,6 +1276,23 @@ export default function App() {
       default:          return <Dashboard setPage={setPage} clients={clients} history={history} />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center" style={{ backgroundColor: TAKT.dark }}>
+        <div className="text-center">
+          <TaktLogoIcon size={48} />
+          <p className="mt-4 font-bold text-lg" style={{ color: TAKT.cyan }}>takt digital</p>
+          <p className="text-sm mt-1" style={{ color: TAKT.slate }}>Carregando...</p>
+          <div className="mt-4 flex gap-1.5 justify-center">
+            {[0,1,2].map(i => (
+              <div key={i} className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: TAKT.cyan, animationDelay: `${i * 0.15}s` }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: "'Inter', system-ui, sans-serif" }} className="flex h-screen bg-gray-50 overflow-hidden">
