@@ -42,7 +42,16 @@ BRIEFING OBRIGATÓRIO:
 - Público-alvo: ${audience || 'Geral'}
 - Observações: ${notes || 'Nenhuma'}
 ${profileSection}${imageSection}
-Gere um conteúdo completo e profissional para ${client}. Responda APENAS com um objeto JSON válido (sem markdown, sem \`\`\`json, sem explicações extras) neste formato exato:
+Gere um conteúdo completo e profissional para ${client}. Responda APENAS com um objeto JSON válido.
+
+REGRAS CRÍTICAS PARA O JSON:
+- Sem markdown, sem \`\`\`json, sem texto antes ou depois do JSON
+- Dentro dos valores de string, NÃO use aspas duplas — use aspas simples se precisar
+- Quebras de linha dentro de strings devem ser representadas como \\n (barra-n literal)
+- Emojis são permitidos
+- O JSON deve ser parseável diretamente por JSON.parse()
+
+Formato exato:
 {
   "analysis": "Análise do estilo visual ideal para ${client}${referenceImage ? ' com base na imagem de referência enviada' : ''}: descreva a identidade visual, paleta de cores, elementos gráficos e composição adequados para este cliente e objetivo. 2 a 3 parágrafos detalhados.",
   "idea": "Ideia estratégica para ${client}: explique o conceito central do post, o posicionamento e o ângulo criativo. Mencione o cliente ${client} explicitamente. 2 a 3 parágrafos.",
@@ -109,15 +118,28 @@ Gere um conteúdo completo e profissional para ${client}. Responda APENAS com um
 
     if (!content) throw new Error('Resposta vazia da API Anthropic.');
 
-    // Extrai o JSON da resposta (remove possíveis blocos de código)
+    // Extrai o JSON da resposta (remove possíveis blocos de código markdown)
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('A IA não retornou JSON válido. Tente novamente.');
 
     let result;
     try {
       result = JSON.parse(jsonMatch[0]);
-    } catch (parseErr) {
-      throw new Error('Erro ao interpretar resposta da IA: ' + parseErr.message);
+    } catch (firstErr) {
+      // Tenta limpar e reparar o JSON antes de desistir
+      try {
+        const cleaned = jsonMatch[0]
+          // Remove caracteres de controle invisíveis (exceto \n e \t)
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+          // Normaliza aspas tipográficas para aspas retas
+          .replace(/[‘’]/g, "'")
+          .replace(/[“”]/g, '"')
+          // Remove vírgulas soltas antes de } ou ]
+          .replace(/,(\s*[}\]])/g, '$1');
+        result = JSON.parse(cleaned);
+      } catch (secondErr) {
+        throw new Error('Erro ao interpretar resposta da IA. Tente gerar novamente.');
+      }
     }
 
     return res.status(200).json(result);
