@@ -40,11 +40,11 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'dall-e-3',
+        model: 'gpt-image-2',
         prompt: enhancedPrompt,
         n: 1,
         size: '1024x1024',
-        quality: quality === 'hd' ? 'hd' : 'standard',
+        quality: quality === 'hd' ? 'high' : 'medium',
       }),
     });
 
