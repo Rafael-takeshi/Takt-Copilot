@@ -64,9 +64,9 @@ const AI_AGENTS = [
 
 const AI_CONFIG_DEFAULT = [
   { id: "claude", name: "Claude (Anthropic)", role: "Análise visual + Revisão + Estratégia", logo: "🤖", active: true, desc: "API conectada. Responsável pela análise, estratégia e revisão de conteúdo." },
-  { id: "gpt", name: "ChatGPT / GPT-4", role: "Copywriting e variações de texto", logo: "💬", active: true, desc: "API conectada. Responsável pela geração de copy, headlines e legendas." },
-  { id: "gemini", name: "Gemini Pro (Google)", role: "Apoio multimodal", logo: "✨", active: true, desc: "API conectada. Suporte para análise multimodal e contexto ampliado." },
-  { id: "make", name: "Make (Integromat)", role: "Automações e fluxos", logo: "⚡", active: false, desc: "Em breve. Automação de entregas, notificações e integrações externas." },
+  { id: "gpt", name: "ChatGPT / GPT-4 + DALL-E 3", role: "Copywriting, legendas e geração de imagem", logo: "💬", active: true, desc: "API conectada. Gera copy, headlines, legendas e imagens via DALL-E 3 direto do briefing visual." },
+  { id: "gemini", name: "Gemini Pro (Google)", role: "Apoio multimodal e análise ampliada", logo: "✨", active: true, desc: "API conectada. Suporte para análise multimodal, contexto ampliado e leitura de referências visuais." },
+  { id: "dalle", name: "DALL-E 3 (OpenAI)", role: "Geração de imagens para posts e artes", logo: "🎨", active: true, desc: "API conectada via OpenAI. Gera imagens a partir do briefing visual criado pelo Diretor de Arte. Cobrado por imagem gerada (~R$ 0,22 padrão / ~R$ 0,44 HD)." },
 ];
 
 const RESULT_DEFAULT = { client: "", type: "", platform: "", goal: "", theme: "", analysis: "", idea: "", headline: "", sub: "", cta: "", caption: "", visual: "", checklist: [] };
@@ -859,6 +859,65 @@ function ResultPage({ setPage, result, updateHistory, setPreSelectedClient, pend
   const [tab, setTab] = useState("analysis");
   const [copied, setCopied] = useState(false);
   const [approved, setApproved] = useState(result.status === "Aprovado");
+  const [generatedImage, setGeneratedImage] = useState(null);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [imageError, setImageError] = useState(null);
+  const [imageQuality, setImageQuality] = useState("standard");
+  const [imageExpiresAt, setImageExpiresAt] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
+
+  // Countdown — atualiza a cada segundo enquanto há imagem gerada
+  useEffect(() => {
+    if (!imageExpiresAt) return;
+    const tick = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((imageExpiresAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) clearInterval(tick);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [imageExpiresAt]);
+
+  const formatCountdown = (secs) => {
+    if (secs === null) return "";
+    const m = Math.floor(secs / 60).toString().padStart(2, "0");
+    const s = (secs % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  const countdownColor = () => {
+    if (timeLeft === null) return TAKT.slate;
+    if (timeLeft < 300) return "#ef4444";   // vermelho — menos de 5 min
+    if (timeLeft < 900) return "#f59e0b";   // amarelo — menos de 15 min
+    return "#10b981";                        // verde — tempo ok
+  };
+
+  const handleGenerateImage = async () => {
+    if (!result.visual) { setImageError("Nenhum briefing visual disponível. Gere o post primeiro."); return; }
+    setGeneratingImage(true);
+    setImageError(null);
+    setGeneratedImage(null);
+    try {
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: result.visual,
+          client: result.client,
+          platform: result.platform,
+          quality: imageQuality,
+        }),
+      });
+      if (!response.ok) { const e = await response.json(); throw new Error(e.error || "Erro ao gerar imagem"); }
+      const data = await response.json();
+      setGeneratedImage(data.url);
+      setImageExpiresAt(Date.now() + 60 * 60 * 1000); // expira em 1 hora
+      setTimeLeft(3600);
+    } catch (err) {
+      setImageError(err.message);
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
 
   const handleCopy = () => {
     let content = "";
@@ -988,9 +1047,130 @@ function ResultPage({ setPage, result, updateHistory, setPreSelectedClient, pend
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-pink-50"><Palette size={15} className="text-pink-600" /></div>
-                  <div><p className="text-sm font-bold text-gray-900">IA 4 — Diretor de Arte</p><p className="text-xs text-gray-400">Briefing visual para o designer</p></div>
+                  <div><p className="text-sm font-bold text-gray-900">IA 4 — Diretor de Arte</p><p className="text-xs text-gray-400">Briefing visual + geração de imagem com DALL-E 3</p></div>
                 </div>
-                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 leading-relaxed">{result.visual || "Nenhum briefing visual gerado."}</div>
+
+                {/* Briefing textual */}
+                <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 leading-relaxed mb-5">{result.visual || "Nenhum briefing visual gerado."}</div>
+
+                {/* Seção de geração de imagem */}
+                <div className="rounded-2xl border-2 p-5" style={{ borderColor: TAKT.coralBorder, backgroundColor: TAKT.coralLight }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-sm font-bold" style={{ color: TAKT.dark }}>Gerar imagem com DALL-E 3</p>
+                      <p className="text-xs text-gray-500 mt-0.5">A IA cria uma imagem baseada no briefing visual acima</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs" style={{ color: TAKT.coralDark }}>
+                      <span className="font-semibold">Custo estimado:</span>
+                      <span className="font-black">{imageQuality === "hd" ? "~R$ 0,44" : "~R$ 0,22"} / imagem</span>
+                    </div>
+                  </div>
+
+                  {/* Opções de qualidade */}
+                  <div className="flex gap-2 mb-4">
+                    {[
+                      { id: "standard", label: "Padrão", desc: "~R$ 0,22 — ótimo para rascunhos", icon: "⚡" },
+                      { id: "hd", label: "HD", desc: "~R$ 0,44 — melhor qualidade", icon: "✨" },
+                    ].map(opt => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setImageQuality(opt.id)}
+                        className="flex-1 p-3 rounded-xl border-2 text-left transition-all"
+                        style={{
+                          borderColor: imageQuality === opt.id ? TAKT.coral : TAKT.coralBorder,
+                          backgroundColor: imageQuality === opt.id ? "white" : "transparent",
+                        }}
+                      >
+                        <p className="text-xs font-bold text-gray-800">{opt.icon} {opt.label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Botão gerar */}
+                  {!generatedImage && (
+                    <button
+                      onClick={handleGenerateImage}
+                      disabled={generatingImage}
+                      className="w-full py-3 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
+                      style={{ backgroundColor: generatingImage ? "#d1d5db" : TAKT.coral, cursor: generatingImage ? "not-allowed" : "pointer" }}
+                    >
+                      {generatingImage ? (
+                        <>
+                          <span className="flex gap-1">{[0,1,2].map(d => <span key={d} className="w-1.5 h-1.5 rounded-full bg-white animate-bounce" style={{ animationDelay: `${d * 0.15}s` }} />)}</span>
+                          Gerando imagem com DALL-E 3...
+                        </>
+                      ) : (
+                        <><Image size={16} /> Gerar imagem com IA</>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Erro */}
+                  {imageError && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+                      <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                      <p className="text-xs text-red-600">{imageError}</p>
+                    </div>
+                  )}
+
+                  {/* Imagem gerada */}
+                  {generatedImage && (
+                    <div className="mt-2">
+                      <div className="relative rounded-2xl overflow-hidden border-2 mb-3" style={{ borderColor: TAKT.coralBorder }}>
+                        <img src={generatedImage} alt="Imagem gerada por IA" className="w-full object-cover" />
+                        <div className="absolute top-3 right-3 flex gap-2">
+                          <a
+                            href={generatedImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                            className="flex items-center gap-1.5 text-xs font-bold text-white px-3 py-1.5 rounded-xl"
+                            style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+                          >
+                            ↓ Baixar
+                          </a>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setGeneratedImage(null); handleGenerateImage(); }}
+                          className="flex-1 border-2 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all hover:bg-white"
+                          style={{ borderColor: TAKT.coralBorder, color: TAKT.coralDark }}
+                        >
+                          <RefreshCw size={13} /> Gerar outra versão
+                        </button>
+                        <a
+                          href={generatedImage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 hover:opacity-90"
+                          style={{ backgroundColor: TAKT.coral }}
+                        >
+                          <Image size={13} /> Abrir em tamanho cheio
+                        </a>
+                      </div>
+                      {/* Countdown de expiração */}
+                      {timeLeft !== null && (
+                        <div className="mt-3 flex items-center justify-center gap-2 p-3 rounded-xl border" style={{ backgroundColor: `${countdownColor()}11`, borderColor: `${countdownColor()}33` }}>
+                          <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: countdownColor() }} />
+                          {timeLeft > 0 ? (
+                            <p className="text-xs font-bold" style={{ color: countdownColor() }}>
+                              Link expira em{" "}
+                              <span className="font-black text-sm tabular-nums">{formatCountdown(timeLeft)}</span>
+                              {timeLeft < 300 && " — baixe agora!"}
+                              {timeLeft >= 300 && timeLeft < 900 && " — baixe em breve"}
+                            </p>
+                          ) : (
+                            <p className="text-xs font-bold text-red-600">
+                              ⚠️ Link expirado — gere uma nova imagem
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {tab === "checklist" && (
