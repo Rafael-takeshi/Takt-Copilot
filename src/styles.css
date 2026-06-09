@@ -41,10 +41,10 @@
   --color-ring: var(--ring);
 }
 
+/* DARK (default) */
 :root {
   --radius: 0.75rem;
 
-  /* Deep navy/indigo dark canvas */
   --background: oklch(0.16 0.04 270);
   --foreground: oklch(0.96 0.01 270);
 
@@ -54,7 +54,6 @@
   --popover: oklch(0.22 0.05 270);
   --popover-foreground: oklch(0.96 0.01 270);
 
-  /* Vibrant indigo/violet primary */
   --primary: oklch(0.66 0.22 290);
   --primary-foreground: oklch(0.99 0 0);
   --primary-glow: oklch(0.72 0.20 270);
@@ -89,7 +88,53 @@
   --shadow-card: 0 8px 30px -12px oklch(0.10 0.04 270 / 60%);
 }
 
+/* LIGHT */
+html.light {
+  --background: oklch(0.985 0.005 270);    /* ~#F6F7FB */
+  --foreground: oklch(0.20 0.03 270);      /* ~#111827 */
+
+  --card: oklch(1 0 0);                    /* white */
+  --card-foreground: oklch(0.20 0.03 270);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.20 0.03 270);
+
+  --primary: oklch(0.62 0.22 290);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-glow: oklch(0.70 0.20 275);
+
+  --secondary: oklch(0.96 0.01 270);
+  --secondary-foreground: oklch(0.22 0.03 270);
+
+  --muted: oklch(0.96 0.01 270);
+  --muted-foreground: oklch(0.50 0.02 270); /* ~#6B7280 */
+
+  --accent: oklch(0.94 0.04 285);
+  --accent-foreground: oklch(0.22 0.03 270);
+
+  --destructive: oklch(0.60 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.60 0.15 155);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.70 0.16 60);
+  --warning-foreground: oklch(0.20 0.02 270);
+  --info: oklch(0.60 0.15 240);
+  --info-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.90 0.01 270);          /* ~#E5E7EB */
+  --input: oklch(0.96 0.01 270);
+  --ring: oklch(0.62 0.22 290);
+
+  --gradient-primary: linear-gradient(135deg, oklch(0.62 0.22 290), oklch(0.62 0.20 265));
+  --gradient-surface: linear-gradient(180deg, oklch(1 0 0), oklch(0.97 0.005 270));
+  --gradient-hero: radial-gradient(80% 60% at 50% 0%, oklch(0.82 0.08 290 / 35%), transparent 70%);
+
+  --shadow-glow: 0 10px 40px -12px oklch(0.62 0.22 290 / 30%);
+  --shadow-card: 0 6px 24px -14px oklch(0.30 0.05 270 / 25%);
+}
+
 .dark { color-scheme: dark; }
+html.light { color-scheme: light; }
 
 @layer base {
   html, body { font-family: var(--font-sans); }

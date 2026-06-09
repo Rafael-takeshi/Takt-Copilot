@@ -1,15 +1,17 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Sparkles, Plus, Moon } from "lucide-react";
+import { Sparkles, Plus, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
 import { NewPostDialog } from "./new-post-dialog";
 import { OPEN_NEWPOST_EVENT, type NewPostPrefill } from "@/lib/ai/generation-history";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const nav = [
   { to: "/dashboard", label: "Início" },
   { to: "/ideas", label: "Ideias" },
   { to: "/posts", label: "Posts" },
+  { to: "/clients", label: "Clientes" },
   { to: "/settings", label: "Configurações" },
 ] as const;
 
@@ -17,6 +19,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
   const [open, setOpen] = useState(false);
   const [prefill, setPrefill] = useState<NewPostPrefill | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -28,12 +31,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(OPEN_NEWPOST_EVENT, handler);
   }, []);
 
+  // close mobile menu on route change
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 md:px-6 py-4">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <span className="text-2xl font-bold tracking-tight text-gradient font-display">
+            <span className="text-xl md:text-2xl font-bold tracking-tight text-gradient font-display">
               Takt Copilot
             </span>
           </Link>
@@ -62,20 +68,57 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" aria-label="Tema">
-              <Moon className="size-4" />
-            </Button>
-            <Button onClick={() => { setPrefill(null); setOpen(true); }} className="bg-gradient-primary shadow-glow hover:opacity-90">
+            <ThemeToggle />
+            <Button
+              onClick={() => { setPrefill(null); setOpen(true); }}
+              className="bg-gradient-primary shadow-glow hover:opacity-90 hidden sm:inline-flex"
+            >
               <Plus className="size-4" /> Novo Post
+            </Button>
+            <Button
+              variant="ghost" size="icon" className="md:hidden"
+              aria-label="Menu"
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </Button>
           </div>
         </div>
+
+        {/* Mobile menu */}
+        {menuOpen && (
+          <div className="md:hidden border-t border-border/60 bg-background/95 backdrop-blur-xl">
+            <nav className="flex flex-col px-4 py-3 gap-1">
+              {nav.map((n) => {
+                const active = location.pathname.startsWith(n.to);
+                return (
+                  <Link
+                    key={n.to}
+                    to={n.to}
+                    className={cn(
+                      "px-3 py-2.5 rounded-md text-sm font-medium",
+                      active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50",
+                    )}
+                  >
+                    {n.label}
+                  </Link>
+                );
+              })}
+              <Button
+                onClick={() => { setPrefill(null); setOpen(true); setMenuOpen(false); }}
+                className="bg-gradient-primary shadow-glow hover:opacity-90 mt-2"
+              >
+                <Plus className="size-4" /> Novo Post
+              </Button>
+            </nav>
+          </div>
+        )}
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-7xl px-6 py-10">{children}</main>
+      <main className="flex-1 mx-auto w-full max-w-7xl px-4 md:px-6 py-8 md:py-10">{children}</main>
 
       <footer className="border-t border-border/60 mt-10">
-        <div className="mx-auto max-w-7xl px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+        <div className="mx-auto max-w-7xl px-4 md:px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-primary" />
             <span className="font-display font-semibold text-foreground">Takt Copilot</span>

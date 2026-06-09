@@ -16,6 +16,11 @@ export type GenerationHistoryItem = {
   cta: string;
   hashtags: string;
   reelsScript: { time: string; text: string }[];
+  artText?: string;
+  visualDirection?: string;
+  palette?: string;
+  font?: string;
+  imagePrompt?: string;
 };
 
 const STORAGE_KEY = "takt.generation-history.v1";
@@ -24,7 +29,10 @@ const EVENT = "takt:generation-history-changed";
 export const OPEN_NEWPOST_EVENT = "takt:open-newpost";
 
 export type NewPostPrefill = Partial<
-  Pick<GenerationHistoryItem, "client" | "theme" | "platform" | "format" | "objective" | "tone" | "hook" | "caption" | "cta" | "hashtags" | "reelsScript">
+  Pick<GenerationHistoryItem,
+    "client" | "theme" | "platform" | "format" | "objective" | "tone"
+    | "hook" | "caption" | "cta" | "hashtags" | "reelsScript"
+    | "artText" | "visualDirection" | "palette" | "font" | "imagePrompt">
 >;
 
 function read(): GenerationHistoryItem[] {
